@@ -151,7 +151,6 @@ class DataTableMobileHelper {
     generateModalContent(rowData, rowIndex) {
         const settings = this.tableInstance.settings()[0];
         const columns = settings.aoColumns;
-        console.log(columns);
 
         const modalContent = $('#dtMobileModal .dtMobileModalContent');
         modalContent.empty();
