@@ -11,12 +11,12 @@ class DataTableMobileHelper {
         this.columnGroups = options.columnGroups || null; // [{ 'name': 'Group name', columns: [0,1,2] }, ... ]
         this.excludeColumns = options.excludeColumns || []; // Columns to exclude in modal
         this.onModalOpen = options.onModalOpen || null; // Callback when modal opens
-        
+        this.columnRenders = options.columnRenders || {}; // { columnIndex: function(data, type, row, meta) {...} }
+
         this.breakpoint = options.breakpoint || 768;
         this.detailButtonHtml = `<button class="dtMobileDetailBtn">
-            ${
-                options.detailButtonHtml || 
-                `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+            ${options.detailButtonHtml ||
+            `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
                     <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM288 224C288 206.3 302.3 192 320 192C337.7 192 352 206.3 352 224C352 241.7 337.7 256 320 256C302.3 256 288 241.7 288 224zM280 288L328 288C341.3 288 352 298.7 352 312L352 400L360 400C373.3 400 384 410.7 384 424C384 437.3 373.3 448 360 448L280 448C266.7 448 256 437.3 256 424C256 410.7 266.7 400 280 400L304 400L304 336L280 336C266.7 336 256 325.3 256 312C256 298.7 266.7 288 280 288z"/>
                 </svg>`
             }
@@ -33,16 +33,16 @@ class DataTableMobileHelper {
         }, options.theme || {});
 
         this.isTransformed = false;
-        
+
         this.init();
     }
-    
+
     init() {
         if (this.isMobile()) {
             this.createModal();
             this.transformTable();
         }
-        
+
         // Resize event
         let resizeTimer;
         $(window).on('resize', () => {
@@ -57,12 +57,12 @@ class DataTableMobileHelper {
             }, 250);
         });
     }
-    
+
     isMobile() {
         return window.innerWidth <= this.breakpoint;
     }
-    
-    // transform table to mobile view
+
+    // Transform table to mobile view
     transformTable() {
         const settings = this.tableInstance.settings()[0];
         const columns = settings.aoColumns;
@@ -75,7 +75,7 @@ class DataTableMobileHelper {
         });
 
         this.addDetailButtons();
-        
+
         this.isTransformed = true;
     }
 
@@ -86,7 +86,7 @@ class DataTableMobileHelper {
         // Visible cells
         const nodes = this.tableInstance.column(primaryIdx, { page: 'current' }).nodes();
 
-        $(nodes).each(function(i, cell) {
+        $(nodes).each(function (i, cell) {
             if ($(cell).find('.dtMobileDetailBtn').length === 0) {
                 $(cell).html(
                     `<div class="dtMobileCellWrapper">
@@ -97,7 +97,7 @@ class DataTableMobileHelper {
             }
         });
 
-        $('.dtMobileDetailBtn').off('click').on('click', function(e) {
+        $('.dtMobileDetailBtn').off('click').on('click', function (e) {
             const rowIndex = that.tableInstance.row($(this).closest('tr')).index();
             const rowData = that.tableInstance.row(rowIndex).data();
             that.showModal(rowData, rowIndex);
@@ -119,12 +119,12 @@ class DataTableMobileHelper {
         const primaryIdx = this.primaryColumns[0];
         const nodes = this.tableInstance.column(primaryIdx, { page: 'current' }).nodes();
 
-        $(nodes).each(function(i, cell) {
+        $(nodes).each(function (i, cell) {
             const $cell = $(cell);
             const $wrapper = $cell.find('.dtMobileCellWrapper');
-            
+
             if ($wrapper.length > 0) {
-                const originalContent = $wrapper.contents().filter(function() {
+                const originalContent = $wrapper.contents().filter(function () {
                     return !$(this).hasClass('dtMobileDetailBtn');
                 });
                 $cell.html(originalContent);
@@ -134,11 +134,11 @@ class DataTableMobileHelper {
         // Remove modal & styles if exists
         $('#dtMobileModal').remove();
         $('#dtMobileHelperStyles').remove();
-        
+
         this.isTransformed = false;
     }
-    
-    // show modal & generate content
+
+    // Show modal & generate content
     showModal(rowData, rowIndex) {
         $('#dtMobileModal').addClass('show');
         this.generateModalContent(rowData, rowIndex);
@@ -147,7 +147,19 @@ class DataTableMobileHelper {
             this.onModalOpen(rowData, rowIndex);
         }
     }
-    
+
+    // Render column data with custom render function
+    renderColumnData(data, columnIndex, rowData, rowIndex) {
+        if (this.columnRenders[columnIndex] && typeof this.columnRenders[columnIndex] === 'function') {
+            return this.columnRenders[columnIndex](data, 'display', rowData, {
+                row: rowIndex,
+                col: columnIndex
+            });
+        }
+
+        return data;
+    }
+
     generateModalContent(rowData, rowIndex) {
         const settings = this.tableInstance.settings()[0];
         const columns = settings.aoColumns;
@@ -155,7 +167,7 @@ class DataTableMobileHelper {
         const modalContent = $('#dtMobileModal .dtMobileModalContent');
         modalContent.empty();
 
-        // grouped content
+        // Grouped content
         let groupedColumnIndexes = [];
         if (this.columnGroups) {
             this.columnGroups.forEach(group => {
@@ -164,45 +176,49 @@ class DataTableMobileHelper {
 
             columns.forEach((column, index) => {
                 if (!this.excludeColumns.includes(index) && !groupedColumnIndexes.includes(column.idx)) {
-                    const simpleContent = this.generateSimpleContent(rowData[column.data], column.sTitle);
+                    const renderedData = this.renderColumnData(rowData[column.data], column.idx, rowData, rowIndex);
+                    const simpleContent = this.generateSimpleContent(renderedData, column.sTitle);
                     modalContent.append(simpleContent);
                 }
             });
 
             this.columnGroups.forEach(group => {
-                const groupRowData = group.columns.map(function(colIdx) { 
-                    return { 
-                        idx: colIdx, 
-                        data: rowData[columns.find(column => column.idx === colIdx).data], 
-                        name: columns.find(column => column.idx === colIdx).sTitle 
-                    }; 
+                const groupRowData = group.columns.map((colIdx) => {
+                    const col = columns.find(column => column.idx === colIdx);
+                    const renderedData = this.renderColumnData(rowData[col.data], col.idx, rowData, rowIndex);
+                    return {
+                        idx: colIdx,
+                        data: renderedData,
+                        name: col.sTitle
+                    };
                 });
                 const groupContent = this.generateGroupedContent(groupRowData, group.columns, group.name);
                 modalContent.append(groupContent);
             });
 
-            // grouped content acordion functionality
-            $('.dtMobileModalGroupTitle').off('click').on('click', function() {
+            // Grouped content accordion functionality
+            $('.dtMobileModalGroupTitle').off('click').on('click', function () {
                 $(this).next('.dtMobileModalGroupContent').slideToggle();
             });
         }
         else {
             columns.forEach((column, index) => {
                 if (!this.excludeColumns.includes(index)) {
-                    const simpleContent = this.generateSimpleContent(rowData[column.data], column.sTitle);
+                    const renderedData = this.renderColumnData(rowData[column.data], column.idx, rowData, rowIndex);
+                    const simpleContent = this.generateSimpleContent(renderedData, column.sTitle);
                     modalContent.append(simpleContent);
                 }
             });
         }
     }
-    
+
     generateSimpleContent(data, title) {
         return `<div class="dtMobileModalRow">
             <div class="dtMobileModalRowTitle">${title}</div>
             <div class="dtMobileModalRowValue">${data}</div>
         </div>`;
     }
-    
+
     generateGroupedContent(datas, columns, title) {
         return `<div class="dtMobileModalGroup">
             <div class="dtMobileModalGroupTitle">
@@ -210,18 +226,17 @@ class DataTableMobileHelper {
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M300.3 440.8C312.9 451 331.4 450.3 343.1 438.6L471.1 310.6C480.3 301.4 483 287.7 478 275.7C473 263.7 461.4 256 448.5 256L192.5 256C179.6 256 167.9 263.8 162.9 275.8C157.9 287.8 160.7 301.5 169.9 310.6L297.9 438.6L300.3 440.8z"/></svg>
             </div>
             <div class="dtMobileModalGroupContent" style="display: none;">
-                ${
-                    datas.map(dataObj => {
-                        return `<div class="dtGroupContentRow">
+                ${datas.map(dataObj => {
+            return `<div class="dtGroupContentRow">
                             <div>${dataObj.name}</div>
                             <div>${dataObj.data}</div>
                         </div>`;
-                    }).join('')
-                }
+        }).join('')
+            }
             </div>
         </div>`;
     }
-    
+
     // create modal HTML
     createModal() {
         if ($('#dtMobileModal').length > 0) return;
@@ -245,11 +260,11 @@ class DataTableMobileHelper {
         $('.dtMobileModalCloseBtn').off('click').on('click', () => {
             $('#dtMobileModal').removeClass('show');
         });
-        
+
         this.injectStyles();
     }
-    
-    // inject mobile datatable styles
+
+    // Inject mobile datatable styles
     injectStyles() {
         if ($('#dtMobileHelperStyles').length > 0) return;
 
@@ -331,6 +346,7 @@ class DataTableMobileHelper {
             }
             .dtMobileModalRow .dtMobileModalRowValue {
                 padding: 0.5rem;
+                font-size: 0.875rem;
             }
             .dtMobileModalGroup {
                 display: flex;
@@ -347,6 +363,7 @@ class DataTableMobileHelper {
                 padding: 0.5rem;
                 background-color: ${this.theme.rowTitleBackgroundColor};
                 border-bottom: 1px solid ${this.theme.rowBorderColor};
+                cursor: pointer;
             }
             .dtMobileModalGroupTitle h3 {
                 font-size: 1rem;
@@ -354,6 +371,10 @@ class DataTableMobileHelper {
             }
             .dtMobileModalGroupTitle svg {
                 width: 1.5rem;
+                transition: transform 0.3s ease;
+            }
+            .dtMobileModalGroupTitle.active svg {
+                transform: rotate(180deg);
             }
             .dtMobileModalGroupContent {
                 display: flex;
@@ -366,6 +387,7 @@ class DataTableMobileHelper {
                 flex-direction: column;
                 padding: 0.5rem 0;
                 border-bottom: 1px solid ${this.theme.rowBorderColor};
+                font-size: 0.875rem;
             }
             .dtMobileModalGroupContent .dtGroupContentRow:last-child {
                 border-bottom: none;

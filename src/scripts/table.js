@@ -155,8 +155,6 @@ $(document).ready(function () {
                     detailButtonColor: 'var(--second-color)',
                 },
             });
-
-            mobileHelper.clickableRows = true;
         },
     });
 });
