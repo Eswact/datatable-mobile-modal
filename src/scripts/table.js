@@ -42,6 +42,13 @@ const tableColumns = [
         title: 'Process',
         check: false,
         checkId: null,
+    },
+    {
+        id: 6,
+        name: 'test',
+        title: 'Test',
+        check: false,
+        checkId: null,
     }
 ];
 var columnDefs = [];
@@ -134,6 +141,13 @@ $(document).ready(function () {
                             </div>`;
                 },
                 orderable: false,
+            },
+            {
+                data: null,
+                render: function (data, type, row) {
+                    return `<div class="cell flex-center">Test</div>`;
+                },
+                orderable: false,
             }
         ],
         columnDefs: columnDefs,
@@ -144,13 +158,19 @@ $(document).ready(function () {
             // Initialize DataTable Mobile Helper
             const mobileHelper = new DataTableMobileHelper({
                 table: customersTable,
+                modalTitle: 'Customer Details',
                 primaryColumns: [0, 5], // Show username & process columns in mobile view
+                excludeColumns: [5], // Dont show process column in mobile modal
+                mobileOnlyColumns: [6], // Show test column only on mobile
                 columnGroups: [{
                     name: 'Contact Info',
                     columns: [2, 3, 4],
                 }],
-                modalTitle: 'Customer Details',
-                excludeColumns: [5], // Dont show process column in mobile view
+                columnRenders: {
+                    6: function (data, columnIndex, rowData) {
+                        return `test`;
+                    }
+                },
                 theme: {
                     detailButtonColor: 'var(--second-color)',
                 },

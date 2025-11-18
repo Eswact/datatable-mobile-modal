@@ -12,6 +12,8 @@ class DataTableMobileHelper {
         this.excludeColumns = options.excludeColumns || []; // Columns to exclude in modal
         this.onModalOpen = options.onModalOpen || null; // Callback when modal opens
         this.columnRenders = options.columnRenders || {}; // { columnIndex: function(data, type, row, meta) {...} }
+        this.mobileOnlyColumns = options.mobileOnlyColumns || []; // [1,3,5] Mobile only columns (visible only on mobile, hidden on desktop)
+        this.originalColumnVisibility = {}; // Store original column visibility for restoration
 
         this.breakpoint = options.breakpoint || 768;
         this.detailButtonHtml = `<button class="dtMobileDetailBtn">
@@ -38,6 +40,13 @@ class DataTableMobileHelper {
     }
 
     init() {
+        // Store original visibility state before any transformations
+        const settings = this.tableInstance.settings()[0];
+        const columns = settings.aoColumns;
+        $(columns).each((index, column) => {
+            this.originalColumnVisibility[index] = this.tableInstance.column(index).visible();
+        });
+
         if (this.isMobile()) {
             this.createModal();
             this.transformTable();
@@ -68,8 +77,12 @@ class DataTableMobileHelper {
         const columns = settings.aoColumns;
 
         $(columns).each((index, column) => {
+            // Show mobile-only columns
+            if (this.mobileOnlyColumns.includes(index)) {
+                this.tableInstance.column(index).visible(true);
+            }
             // Hide non-primary columns
-            if (!this.primaryColumns.includes(index)) {
+            else if (!this.primaryColumns.includes(index)) {
                 this.tableInstance.column(index).visible(false);
             }
         });
@@ -108,10 +121,15 @@ class DataTableMobileHelper {
         const settings = this.tableInstance.settings()[0];
         const columns = settings.aoColumns;
 
-        // Show columns that were hidden
+        // Restore original visibility state
         $(columns).each((index, column) => {
-            if (!this.primaryColumns.includes(index) && !this.excludeColumns.includes(index)) {
-                this.tableInstance.column(index).visible(true);
+            // Hide mobile-only columns on desktop
+            if (this.mobileOnlyColumns.includes(index)) {
+                this.tableInstance.column(index).visible(false);
+            }
+            // Restore other columns to their original state
+            else if (this.originalColumnVisibility.hasOwnProperty(index)) {
+                this.tableInstance.column(index).visible(this.originalColumnVisibility[index]);
             }
         });
 
@@ -150,6 +168,7 @@ class DataTableMobileHelper {
 
     // Render column data with custom render function
     renderColumnData(data, columnIndex, rowData, rowIndex) {
+        // Check if there's a custom render function for this column
         if (this.columnRenders[columnIndex] && typeof this.columnRenders[columnIndex] === 'function') {
             return this.columnRenders[columnIndex](data, 'display', rowData, {
                 row: rowIndex,
@@ -157,6 +176,7 @@ class DataTableMobileHelper {
             });
         }
 
+        // Return raw data if no render function
         return data;
     }
 
@@ -196,7 +216,7 @@ class DataTableMobileHelper {
                 modalContent.append(groupContent);
             });
 
-            // Grouped content accordion functionality
+            // Grouped content acordion functionality
             $('.dtMobileModalGroupTitle').off('click').on('click', function () {
                 $(this).next('.dtMobileModalGroupContent').slideToggle();
             });
@@ -237,7 +257,7 @@ class DataTableMobileHelper {
         </div>`;
     }
 
-    // create modal HTML
+    // Create modal HTML
     createModal() {
         if ($('#dtMobileModal').length > 0) return;
 
