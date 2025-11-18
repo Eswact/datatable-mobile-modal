@@ -51,6 +51,9 @@ class DataTableMobileHelper {
             this.createModal();
             this.transformTable();
         }
+        else {
+            this.restoreTable();
+        }
 
         // Resize event
         let resizeTimer;
