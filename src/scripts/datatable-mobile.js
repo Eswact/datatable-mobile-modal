@@ -326,6 +326,13 @@ class DataTableMobileHelper {
             }
             .dtMobileModalHeader {
                 display: flex;
+                width: 100%;
+                top: 0;
+                left: 0;
+                padding: 8px 12px;
+                position: fixed;
+                background: white;
+                box-shadow: 1px 1px 2px 3px rgba(0, 0, 0, 0.2);
                 align-items: center;
                 justify-content: space-between;
                 padding-bottom: 0.25rem;
@@ -348,6 +355,7 @@ class DataTableMobileHelper {
                 fill: ${this.theme.modalCloseButtonColor};
             }
             .dtMobileModalContent {
+                margin-top: 2.5rem;
                 padding: 1rem 0.25rem;
                 display: flex;
                 flex-direction: column;
