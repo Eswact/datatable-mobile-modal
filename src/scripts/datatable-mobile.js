@@ -1,5 +1,5 @@
 /**
- * DataTable Mobile Modal - v1.13.7 Compatible
+ * DataTable Mobile Modal - v1.13.7 && v2.0.8 Compatible
  * By Eswact
 */
 
@@ -96,7 +96,9 @@ class DataTableMobileHelper {
     }
 
     addDetailButtons() {
-        const primaryIdx = this.primaryColumns[0];
+        let mobileColums = [...new Set([...this.primaryColumns, ...this.mobileOnlyColumns])];
+        mobileColums.sort((a, b) => a - b);
+        const primaryIdx = mobileColums[0];
         const that = this;
 
         // Visible cells
@@ -429,6 +431,44 @@ class DataTableMobileHelper {
             }
         </style>`;
         $('head').append(styles);
+    }
+
+    destroy() {
+        $(window).off('resize');
+        $('#dtMobileModal').remove();
+        $('#dtMobileHelperStyles').remove();
+
+        try {
+            const primaryIdx = this.primaryColumns[0];
+            const nodes = this.tableInstance.column(primaryIdx, { page: 'current' }).nodes();
+
+            $(nodes).each(function (i, cell) {
+                const $cell = $(cell);
+                const $wrapper = $cell.find('.dtMobileCellWrapper');
+
+                if ($wrapper.length > 0) {
+                    const originalContent = $wrapper.contents().filter(function () {
+                        return !$(this).hasClass('dtMobileDetailBtn');
+                    });
+
+                    $cell.html(originalContent);
+                }
+            });
+        } catch (e) { }
+
+        Object.keys(this.originalColumnVisibility).forEach(idx => {
+            this.tableInstance.column(Number(idx)).visible(this.originalColumnVisibility[idx]);
+        });
+
+        this.mobileOnlyColumns.forEach(idx => {
+            this.tableInstance.column(idx).visible(false);
+        });
+
+        $('.dtMobileDetailBtn').off();
+        $('.dtMobileModalCloseBtn').off();
+        $('.dtMobileModalGroupTitle').off();
+
+        this.isTransformed = false;
     }
 }
 

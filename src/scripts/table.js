@@ -60,6 +60,8 @@ columnDefs = tableColumns.map(function (column) {
 var orderPref = [];
 $(tableColumns).each(function (index, column) { orderPref.push(column.id) });
 
+var mobileHelper;
+
 // Create Table
 $(document).ready(function () {
     const mockData = [
@@ -153,7 +155,10 @@ $(document).ready(function () {
         ],
         drawCallback: function () {
             const api = this.api();
-            const mobileHelper = new DataTableMobileHelper({
+            if (mobileHelper) {
+                mobileHelper.destroy();
+            }
+            mobileHelper = new DataTableMobileHelper({
                 table: api,
                 modalTitle: 'Customer Details',
                 primaryColumns: [0, 5], // Show username & process columns in mobile view
