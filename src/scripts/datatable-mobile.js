@@ -13,6 +13,10 @@ class DataTableMobileHelper {
         this.onModalOpen = options.onModalOpen || null; // Callback when modal opens
         this.columnRenders = options.columnRenders || {}; // { columnIndex: function(data, type, row, meta) {...} }
         this.mobileOnlyColumns = options.mobileOnlyColumns || []; // [1,3,5] Mobile only columns (visible only on mobile, hidden on desktop)
+        this.editableMode = options.editableMode || false; // Future use: Editable mode in modal
+        this.editableColumns = options.editableColumns || []; // Future use: Columns that are editable in modal
+        this.onActionButtonClick = options.onActionButtonClick || null; // Future use: Callback when action button is clicked in editable mode
+        this.actionButtonHtml = options.actionButtonHtml || "Save"; // Future use: Custom HTML for action button in editable mode
         this.originalColumnVisibility = {}; // Store original column visibility for restoration
 
         this.breakpoint = options.breakpoint || 768;
@@ -32,6 +36,9 @@ class DataTableMobileHelper {
             modalHeaderBorderColor: '#23232323',
             rowBorderColor: '#dddddd',
             rowTitleBackgroundColor: '#f0f0f0',
+            actionButtonTextColor: '#2727a7',
+            actionButtonBorderColor: '#2727a7',
+            actionButtonBackgroundColor: '#e0e0ff'
         }, options.theme || {});
 
         this.isTransformed = false;
@@ -68,6 +75,22 @@ class DataTableMobileHelper {
                 }
             }, 250);
         });
+
+        if (this.editableColumns.length > 0 && !this.editableMode) {
+            this.editableMode = true;
+        }
+        if (this.editableColumns.length == 0 && this.editableMode) {
+            const settings = this.tableInstance.settings()[0];
+            const columns = settings.aoColumns;
+            columns.forEach((column, index) => {
+                if (!this.excludeColumns.includes(index)) {
+                    this.editableColumns.push({
+                        index: index,
+                        type: 'text'
+                    });
+                }
+            });
+        }
     }
 
     isMobile() {
@@ -169,6 +192,35 @@ class DataTableMobileHelper {
         if (this.onModalOpen && typeof this.onModalOpen === 'function') {
             this.onModalOpen(rowData, rowIndex);
         }
+
+        if (this.editableColumns.length > 0) {
+            this.editableColumns.forEach(col => {
+                if (col.onKeydown) {
+                    $('.dtMobileModalContent input[data-index="' + col.index + '"]').on('keydown', (event) => {
+                        col.onKeydown(event);
+                    });
+                }
+            });
+
+            // Action button event
+            $('.dtMobileModalActionBtn').off('click').on('click', async() => {
+                let editedColumns = []
+                $('.dtMobileModalContent input').each((index, input) => {
+                    const columnIndex = $(input).attr('data-index');
+                    const columnData = $(input).val();
+                    editedColumns.push({ index: columnIndex, data: columnData });
+                });
+
+                // todo: splash screen show
+                if (await this.onActionButtonClick(editedColumns)) {
+                    $('#dtMobileModal').removeClass('show');
+                    // todo: splash screen unshow
+                }
+                else {
+                    // todo: splash screen unshow
+                }
+            });
+        }
     }
 
     // Render column data with custom render function
@@ -202,7 +254,7 @@ class DataTableMobileHelper {
             columns.forEach((column, index) => {
                 if (!this.excludeColumns.includes(index) && !groupedColumnIndexes.includes(column.idx)) {
                     const renderedData = this.renderColumnData(rowData[column.data], column.idx, rowData, rowIndex);
-                    const simpleContent = this.generateSimpleContent(renderedData, column.sTitle);
+                    const simpleContent = (this.editableColumns.some(col => col.index === index)) ? this.generateEditableContent(renderedData, column.sTitle, index) : this.generateSimpleContent(renderedData, column.sTitle);
                     modalContent.append(simpleContent);
                 }
             });
@@ -230,7 +282,7 @@ class DataTableMobileHelper {
             columns.forEach((column, index) => {
                 if (!this.excludeColumns.includes(index)) {
                     const renderedData = this.renderColumnData(rowData[column.data], column.idx, rowData, rowIndex);
-                    const simpleContent = this.generateSimpleContent(renderedData, column.sTitle);
+                    const simpleContent = (this.editableColumns.some(col => col.index === index)) ? this.generateEditableContent(renderedData, column.sTitle, index) : this.generateSimpleContent(renderedData, column.sTitle);
                     modalContent.append(simpleContent);
                 }
             });
@@ -244,7 +296,18 @@ class DataTableMobileHelper {
         </div>`;
     }
 
+    generateEditableContent(data, title, index) {
+        let editableColumn = this.editableColumns.find(col => col.index === index);
+        return `<div class="dtMobileModalRow">
+            <div class="dtMobileModalRowTitle">${title}</div>
+            <div class="dtMobileModalRowValue">
+                <input data-index="${index}" type="${editableColumn.type}" value="${data}" />
+            </div>
+        </div>`;
+    }
+
     generateGroupedContent(datas, columns, title) {
+        const that = this;
         return `<div class="dtMobileModalGroup">
             <div class="dtMobileModalGroupTitle">
                 <h3>${title}</h3>
@@ -252,12 +315,22 @@ class DataTableMobileHelper {
             </div>
             <div class="dtMobileModalGroupContent" style="display: none;">
                 ${datas.map(dataObj => {
-            return `<div class="dtGroupContentRow">
-                            <div>${dataObj.name}</div>
-                            <div>${dataObj.data}</div>
-                        </div>`;
-        }).join('')
-            }
+                    if (that.editableColumns.some(col => col.index === dataObj.idx)) {
+                        let editableColumn = that.editableColumns.find(col => col.index === dataObj.idx);
+                        return `<div class="dtGroupContentRow">
+                                    <div>${dataObj.name}</div>
+                                    <div>
+                                        <input data-index="${dataObj.idx}" type="${editableColumn.type}" value="${dataObj.data}" />
+                                    </div>
+                                </div>`;
+                    }
+                    else {
+                        return `<div class="dtGroupContentRow">
+                                    <div>${dataObj.name}</div>
+                                    <div>${dataObj.data}</div>
+                                </div>`;
+                    }
+                }).join('')}
             </div>
         </div>`;
     }
@@ -278,6 +351,9 @@ class DataTableMobileHelper {
             <div class="dtMobileModalContent">
                 <!-- Dynamic Content Here -->
             </div>
+            ${this.editableColumns.length > 0 ? `<div class="dtMobileModalFooter">
+                <button class="dtMobileModalActionBtn">${this.actionButtonHtml}</button>
+            </div>` : ''}
         </div>`;
         $('body').append(modalHtml);
 
@@ -362,6 +438,27 @@ class DataTableMobileHelper {
                 display: flex;
                 flex-direction: column;
                 gap: 1rem;
+                flex: 1;
+                overflow-y: auto;
+            }
+            .dtMobileModalFooter {
+                padding: 0.75rem 0.25rem 0.25rem 0.25rem;
+                border-top: 1px solid ${this.theme.modalHeaderBorderColor};
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+            .dtMobileModalActionBtn {
+                width: 280px;
+                cursor: pointer;
+                padding: 8px 16px;
+                color: ${this.theme.actionButtonTextColor};
+                border: 1px solid ${this.theme.actionButtonBorderColor};
+                border-radius: 4px;
+                box-shadow: 0 0 5px 2px rgba(0, 0, 0, 0.2);
+                background-color: ${this.theme.actionButtonBackgroundColor};
+                font-size: 14px;
+                font-weight: 600;
             }
             .dtMobileModalRow {
                 width: 100%;
@@ -380,6 +477,13 @@ class DataTableMobileHelper {
             .dtMobileModalRow .dtMobileModalRowValue {
                 padding: 0.5rem;
                 font-size: 0.875rem;
+            }
+            .dtMobileModalRow .dtMobileModalRowValue input {
+                padding: 0.5rem;
+                margin: 0.25rem;
+                font-size: 0.875rem;
+                border-radius: 0.5rem;
+                border: 1px solid ${this.theme.rowBorderColor};
             }
             .dtMobileModalGroup {
                 display: flex;
@@ -428,6 +532,13 @@ class DataTableMobileHelper {
             .dtMobileModalGroupContent .dtGroupContentRow div:first-child {
                 font-weight: 600;
                 margin-bottom: 0.25rem;
+            }
+            .dtMobileModalGroupContent .dtGroupContentRow div input {
+                padding: 0.5rem;
+                margin: 0.25rem;
+                font-size: 0.875rem;
+                border-radius: 0.5rem;
+                border: 1px solid ${this.theme.rowBorderColor};
             }
         </style>`;
         $('head').append(styles);

@@ -175,6 +175,30 @@ $(document).ready(function () {
                 },
                 theme: { 
                     detailButtonColor: 'var(--second-color)' 
+                },
+                editableMode: true,
+                editableColumns: [
+                    {
+                        index: 2,
+                        type: 'text',
+                        onKeydown: function(event) {
+                            if (!(event.key >= '0' && event.key <= '9' || event.key === 'Backspace' || event.key === 'Tab' || event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+                                event.preventDefault();
+                            }
+                        }
+                    },
+                    {
+                        index: 3,
+                        type: 'email',
+                    },
+                    {
+                        index: 6,
+                        type: 'text',
+                    }
+                ],
+                onActionButtonClick: function (data) {
+                    console.log(data);
+                    return true;
                 }
             });
         },
