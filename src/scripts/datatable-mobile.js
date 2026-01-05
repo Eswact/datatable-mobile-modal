@@ -13,11 +13,12 @@ class DataTableMobileHelper {
         this.onModalOpen = options.onModalOpen || null; // Callback when modal opens
         this.columnRenders = options.columnRenders || {}; // { columnIndex: function(data, type, row, meta) {...} }
         this.mobileOnlyColumns = options.mobileOnlyColumns || []; // [1,3,5] Mobile only columns (visible only on mobile, hidden on desktop)
-        this.editableMode = options.editableMode || false; // Future use: Editable mode in modal
-        this.editableColumns = options.editableColumns || []; // Future use: Columns that are editable in modal
-        this.onActionButtonClick = options.onActionButtonClick || null; // Future use: Callback when action button is clicked in editable mode
-        this.actionButtonHtml = options.actionButtonHtml || "Save"; // Future use: Custom HTML for action button in editable mode
+        this.editableMode = options.editableMode || false; // Editable mode in modal
+        this.editableColumns = options.editableColumns || []; // Columns that are editable in modal
+        this.onActionButtonClick = options.onActionButtonClick || null; // Callback when action button is clicked in editable mode
+        this.actionButtonHtml = options.actionButtonHtml || "Save"; // Custom HTML for action button in editable mode
         this.originalColumnVisibility = {}; // Store original column visibility for restoration
+        this.reactiveFields = options.reactiveFields || []; // Reactive fields configuration
 
         this.breakpoint = options.breakpoint || 768;
         this.detailButtonHtml = `<button class="dtMobileDetailBtn">
@@ -196,16 +197,29 @@ class DataTableMobileHelper {
         if (this.editableColumns.length > 0) {
             this.editableColumns.forEach(col => {
                 if (col.onKeydown) {
-                    $('.dtMobileModalContent input[data-index="' + col.index + '"]').on('keydown', (event) => {
+                    $('.dtMobileModalContent .dtEditableValue[data-index="' + col.index + '"]').on('keydown', (event) => {
                         col.onKeydown(event);
+                    });
+                }
+                if (col.onBlur) {
+                    $('.dtMobileModalContent .dtEditableValue[data-index="' + col.index + '"]').on('blur', (event) => {
+                        col.onBlur(event);
+                    });
+                }
+                if (col.onChange) {
+                    $('.dtMobileModalContent .dtEditableValue[data-index="' + col.index + '"]').on('change', (event) => {
+                        col.onChange(event);
                     });
                 }
             });
 
+            // Attach reactive listeners
+            this.attachReactiveListeners();
+
             // Action button event
             $('.dtMobileModalActionBtn').off('click').on('click', async() => {
                 let editedColumns = []
-                $('.dtMobileModalContent input').each((index, input) => {
+                $('.dtMobileModalContent .dtEditableValue').each((index, input) => {
                     const columnIndex = $(input).attr('data-index');
                     const columnData = $(input).val();
                     editedColumns.push({ index: columnIndex, data: columnData });
@@ -221,6 +235,52 @@ class DataTableMobileHelper {
                 }
             });
         }
+    }
+
+    attachReactiveListeners() {
+        const that = this;
+        
+        this.reactiveFields.forEach(reactive => {
+            const sourceSelector = `.dtMobileModalContent .dtEditableValue[data-index="${reactive.sourceIndex}"]`;
+            const $source = $(sourceSelector);
+            
+            $source.on('change', function() {
+                const newValue = parseFloat($(this).val()) || 0;
+                const oldValue = parseFloat($(this).data('previous-value')) || 0;
+                
+                const targetSelector = `.dtMobileModalContent .dtEditableValue[data-index="${reactive.targetIndex}"]`;
+                const $target = $(targetSelector);
+                const currentTargetValue = parseFloat($target.val()) || 0;
+                
+                const currentRowData = {};
+                $('.dtMobileModalContent .dtEditableValue').each(function() {
+                    const idx = parseInt($(this).attr('data-index'));
+                    currentRowData[idx] = $(this).val();
+                });
+                
+                currentRowData[reactive.targetIndex] = currentTargetValue;
+                
+                const calculatedValue = reactive.calculate(newValue, currentRowData, oldValue);
+                
+                if ($target.length > 0) {
+                    $target.val(calculatedValue);
+                    $target.data('previous-value', calculatedValue);
+                } else {
+                    const $targetDisplay = $(`.dtMobileModalContent .dtMobileModalRowValue`).filter(function() {
+                        return $(this).prev('.dtMobileModalRowTitle').attr('data-index') == reactive.targetIndex;
+                    });
+                    if ($targetDisplay.length > 0) {
+                        $targetDisplay.html(calculatedValue);
+                    }
+                }
+                
+                if (reactive.onUpdate && typeof reactive.onUpdate === 'function') {
+                    reactive.onUpdate(newValue, calculatedValue, currentRowData, oldValue);
+                }
+                
+                $(this).data('previous-value', newValue);
+            });
+        });
     }
 
     // Render column data with custom render function
@@ -254,7 +314,7 @@ class DataTableMobileHelper {
             columns.forEach((column, index) => {
                 if (!this.excludeColumns.includes(index) && !groupedColumnIndexes.includes(column.idx)) {
                     const renderedData = this.renderColumnData(rowData[column.data], column.idx, rowData, rowIndex);
-                    const simpleContent = (this.editableColumns.some(col => col.index === index)) ? this.generateEditableContent(renderedData, column.sTitle, index) : this.generateSimpleContent(renderedData, column.sTitle);
+                    const simpleContent = (this.editableColumns.some(col => col.index === index)) ? this.generateEditableContent(renderedData, column.sTitle, index) : this.generateSimpleContent(renderedData, column.sTitle, index);
                     modalContent.append(simpleContent);
                 }
             });
@@ -282,16 +342,22 @@ class DataTableMobileHelper {
             columns.forEach((column, index) => {
                 if (!this.excludeColumns.includes(index)) {
                     const renderedData = this.renderColumnData(rowData[column.data], column.idx, rowData, rowIndex);
-                    const simpleContent = (this.editableColumns.some(col => col.index === index)) ? this.generateEditableContent(renderedData, column.sTitle, index) : this.generateSimpleContent(renderedData, column.sTitle);
+                    const simpleContent = (this.editableColumns.some(col => col.index === index)) ? this.generateEditableContent(renderedData, column.sTitle, index) : this.generateSimpleContent(renderedData, column.sTitle, index);
                     modalContent.append(simpleContent);
                 }
             });
         }
+
+        setTimeout(() => {
+            $('.dtMobileModalContent .dtEditableValue').each(function() {
+                $(this).data('previous-value', $(this).val());
+            });
+        }, 0);
     }
 
-    generateSimpleContent(data, title) {
+    generateSimpleContent(data, title, index) {
         return `<div class="dtMobileModalRow">
-            <div class="dtMobileModalRowTitle">${title}</div>
+            <div class="dtMobileModalRowTitle" data-index="${index}">${title}</div>
             <div class="dtMobileModalRowValue">${data}</div>
         </div>`;
     }
@@ -301,7 +367,14 @@ class DataTableMobileHelper {
         return `<div class="dtMobileModalRow">
             <div class="dtMobileModalRowTitle">${title}</div>
             <div class="dtMobileModalRowValue">
-                <input data-index="${index}" type="${editableColumn.type}" value="${data}" />
+                ${editableColumn.type === 'select' 
+                    ?
+                    `<select data-index="${index}" class="dtEditableValue">
+                        ${editableColumn.options.map(option => `<option value="${option.value}" ${option.value == data ? 'selected' : ''}>${option.text}</option>`).join('')}
+                    </select>`
+                    :
+                    `<input data-index="${index}" type="${editableColumn.type}" value="${data}" class="dtEditableValue" />`
+                }
             </div>
         </div>`;
     }
@@ -320,7 +393,14 @@ class DataTableMobileHelper {
                         return `<div class="dtGroupContentRow">
                                     <div>${dataObj.name}</div>
                                     <div>
-                                        <input data-index="${dataObj.idx}" type="${editableColumn.type}" value="${dataObj.data}" />
+                                        ${editableColumn.type === 'select' 
+                                            ?
+                                            `<select data-index="${dataObj.idx}" class="dtEditableValue">
+                                                ${editableColumn.options.map(option => `<option value="${option.value}" ${option.value == dataObj.data ? 'selected' : ''}>${option.text}</option>`).join('')}
+                                            </select>`
+                                            :
+                                            `<input data-index="${dataObj.idx}" type="${editableColumn.type}" value="${dataObj.data}" class="dtEditableValue" />`
+                                        }
                                     </div>
                                 </div>`;
                     }
@@ -478,7 +558,8 @@ class DataTableMobileHelper {
                 padding: 0.5rem;
                 font-size: 0.875rem;
             }
-            .dtMobileModalRow .dtMobileModalRowValue input {
+            .dtMobileModalRow .dtMobileModalRowValue .dtEditableValue {
+                min-width: 200px;
                 padding: 0.5rem;
                 margin: 0.25rem;
                 font-size: 0.875rem;
@@ -533,7 +614,8 @@ class DataTableMobileHelper {
                 font-weight: 600;
                 margin-bottom: 0.25rem;
             }
-            .dtMobileModalGroupContent .dtGroupContentRow div input {
+            .dtMobileModalGroupContent .dtGroupContentRow div .dtEditableValue {
+                min-width: 200px;
                 padding: 0.5rem;
                 margin: 0.25rem;
                 font-size: 0.875rem;

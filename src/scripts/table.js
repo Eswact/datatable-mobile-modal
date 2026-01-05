@@ -193,8 +193,33 @@ $(document).ready(function () {
                     },
                     {
                         index: 6,
-                        type: 'text',
+                        type: 'select',
+                        options: [
+                            { value: 1, text: 'Test 1' },
+                            { value: 2, text: 'Test 2' },
+                            { value: 3, text: 'Test 3' }, 
+                        ],
+                        onChange: function(data) {
+                            // console.log(data);
+                        }
                     }
+                ],
+                reactiveFields: [
+                    {
+                        sourceIndex: 6, // column to watch
+                        targetIndex: 2, // column to update
+                        calculate: function(value, rowData) {
+                            const oldValue = rowData[2] || 0;
+                            const newValue = value;
+                            const total = oldValue + newValue;
+                            
+                            return total;
+                        },
+                        onUpdate: function(sourceValue, newValue, allData) {
+                            // console.log('source value:', sourceValue);
+                            // console.log('new value:', newValue);
+                        }
+                    },
                 ],
                 onActionButtonClick: function (data) {
                     console.log(data);
