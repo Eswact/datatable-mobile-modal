@@ -545,7 +545,7 @@ class DataTableMobileHelper {
                 display: flex;
                 flex-direction: column;
                 border-radius: 0.5rem;
-                overflow: hidden;
+                overflow: clip;
                 border: 2px solid ${this.theme.rowBorderColor};
             }
             .dtMobileModalRow .dtMobileModalRowTitle {
@@ -570,7 +570,7 @@ class DataTableMobileHelper {
                 display: flex;
                 flex-direction: column;
                 border-radius: 0.5rem;
-                overflow: hidden;
+                overflow: clip;
                 border: 2px solid ${this.theme.rowBorderColor};
             }
             .dtMobileModalGroupTitle {
