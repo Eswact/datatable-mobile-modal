@@ -8,7 +8,7 @@ class DataTableMobileHelper {
         this.tableInstance = options.table; // DataTable instance
         this.primaryColumns = options.primaryColumns || [0]; // Showing columns on mobile
         this.modalTitle = options.modalTitle || 'Details';
-        this.columnGroups = options.columnGroups || null; // [{ 'name': 'Group name', columns: [0,1,2] }, ... ]
+        this.columnGroups = options.columnGroups || null; // [{ 'name': 'Group name', columns: [0,1,2] }, ... ] // columns.length === 1 ise single row olarak gösterilir
         this.excludeColumns = options.excludeColumns || []; // Columns to exclude in modal
         this.onModalOpen = options.onModalOpen || null; // Callback when modal opens
         this.columnRenders = options.columnRenders || {}; // { columnIndex: function(data, type, row, meta) {...} }
@@ -21,7 +21,7 @@ class DataTableMobileHelper {
         this.reactiveFields = options.reactiveFields || []; // Reactive fields configuration
 
         this.breakpoint = options.breakpoint || 768;
-        this.detailButtonHtml = `<button class="dtMobileDetailBtn">
+        this.detailButtonHtml = `<button type="button" class="dtMobileDetailBtn">
             ${options.detailButtonHtml ||
             `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
                     <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM288 224C288 206.3 302.3 192 320 192C337.7 192 352 206.3 352 224C352 241.7 337.7 256 320 256C302.3 256 288 241.7 288 224zM280 288L328 288C341.3 288 352 298.7 352 312L352 400L360 400C373.3 400 384 410.7 384 424C384 437.3 373.3 448 360 448L280 448C266.7 448 256 437.3 256 424C256 410.7 266.7 400 280 400L304 400L304 336L280 336C266.7 336 256 325.3 256 312C256 298.7 266.7 288 280 288z"/>
@@ -74,6 +74,7 @@ class DataTableMobileHelper {
                 } else if (!this.isMobile() && this.isTransformed) {
                     this.restoreTable();
                 }
+                //this.tableInstance.ajax.reload(null, false);
             }, 250);
         });
 
@@ -217,7 +218,7 @@ class DataTableMobileHelper {
             this.attachReactiveListeners();
 
             // Action button event
-            $('.dtMobileModalActionBtn').off('click').on('click', async() => {
+            $('.dtMobileModalActionBtn').off('click').on('click', async () => {
                 let editedColumns = []
                 $('.dtMobileModalContent .dtEditableValue').each((index, input) => {
                     const columnIndex = $(input).attr('data-index');
@@ -239,46 +240,61 @@ class DataTableMobileHelper {
 
     attachReactiveListeners() {
         const that = this;
-        
+
         this.reactiveFields.forEach(reactive => {
-            const sourceSelector = `.dtMobileModalContent .dtEditableValue[data-index="${reactive.sourceIndex}"]`;
-            const $source = $(sourceSelector);
-            
-            $source.on('change', function() {
-                const newValue = parseFloat($(this).val()) || 0;
-                const oldValue = parseFloat($(this).data('previous-value')) || 0;
-                
-                const targetSelector = `.dtMobileModalContent .dtEditableValue[data-index="${reactive.targetIndex}"]`;
-                const $target = $(targetSelector);
-                const currentTargetValue = parseFloat($target.val()) || 0;
-                
-                const currentRowData = {};
-                $('.dtMobileModalContent .dtEditableValue').each(function() {
-                    const idx = parseInt($(this).attr('data-index'));
-                    currentRowData[idx] = $(this).val();
-                });
-                
-                currentRowData[reactive.targetIndex] = currentTargetValue;
-                
-                const calculatedValue = reactive.calculate(newValue, currentRowData, oldValue);
-                
-                if ($target.length > 0) {
-                    $target.val(calculatedValue);
-                    $target.data('previous-value', calculatedValue);
-                } else {
-                    const $targetDisplay = $(`.dtMobileModalContent .dtMobileModalRowValue`).filter(function() {
-                        return $(this).prev('.dtMobileModalRowTitle').attr('data-index') == reactive.targetIndex;
+            // sourceIndex array veya tek değer olabilir
+            const sourceIndexes = Array.isArray(reactive.sourceIndex) ? reactive.sourceIndex : [reactive.sourceIndex];
+
+            sourceIndexes.forEach(sourceIdx => {
+                const sourceSelector = `.dtMobileModalContent .dtEditableValue[data-index="${sourceIdx}"]`;
+                const $source = $(sourceSelector);
+
+                $source.on('change', function () {
+                    const newValue = parseFloat($(this).val()) || 0;
+                    const oldValue = parseFloat($(this).data('previous-value')) || 0;
+
+                    const targetSelector = `.dtMobileModalContent .dtEditableValue[data-index="${reactive.targetIndex}"]`;
+                    const $target = $(targetSelector);
+                    const currentTargetValue = parseFloat($target.val()) || 0;
+
+                    const currentRowData = {};
+                    $('.dtMobileModalContent .dtEditableValue').each(function () {
+                        const idx = parseInt($(this).attr('data-index'));
+                        currentRowData[idx] = $(this).val();
                     });
-                    if ($targetDisplay.length > 0) {
-                        $targetDisplay.html(calculatedValue);
+
+                    currentRowData[reactive.targetIndex] = currentTargetValue;
+
+                    const calculatedValue = reactive.calculate(newValue, currentRowData, oldValue);
+
+                    if ($target.length > 0) {
+                        $target.val(calculatedValue);
+                        $target.data('previous-value', calculatedValue);
+                    } else {
+                        // Grup içinde veya normal row içinde arama yap
+                        let $targetDisplay = $(`.dtMobileModalContent .dtMobileModalRowValue`).filter(function () {
+                            return $(this).prev('.dtMobileModalRowTitle').attr('data-index') == reactive.targetIndex;
+                        });
+
+                        // Eğer normal row'da bulunamadıysa grup içinde ara
+                        if ($targetDisplay.length === 0) {
+                            $targetDisplay = $(`.dtMobileModalContent .dtGroupContentRow`).filter(function () {
+                                return $(this).find('.dtEditableValue[data-index="' + reactive.targetIndex + '"]').length > 0 ||
+                                    $(this).find('div:first-child').text().trim() === that.tableInstance.settings()[0].aoColumns.find(col => col.idx == reactive.targetIndex)?.sTitle;
+                            }).find('div:last-child');
+                        }
+
+                        if ($targetDisplay.length > 0) {
+                            $targetDisplay.html(calculatedValue);
+                        }
                     }
-                }
-                
-                if (reactive.onUpdate && typeof reactive.onUpdate === 'function') {
-                    reactive.onUpdate(newValue, calculatedValue, currentRowData, oldValue);
-                }
-                
-                $(this).data('previous-value', newValue);
+
+                    if (reactive.onUpdate && typeof reactive.onUpdate === 'function') {
+                        reactive.onUpdate(newValue, calculatedValue, currentRowData, oldValue);
+                    }
+
+                    $(this).data('previous-value', newValue);
+                });
             });
         });
     }
@@ -304,52 +320,82 @@ class DataTableMobileHelper {
         const modalContent = $('#dtMobileModal .dtMobileModalContent');
         modalContent.empty();
 
-        // Grouped content
-        let groupedColumnIndexes = [];
-        if (this.columnGroups) {
+        // columnGroups varsa
+        if (this.columnGroups && this.columnGroups.length > 0) {
+            // Tüm gruplandırılmış column index'lerini topla
+            let groupedColumnIndexes = [];
             this.columnGroups.forEach(group => {
                 groupedColumnIndexes = groupedColumnIndexes.concat(group.columns);
             });
 
+            // Önce gruplandırılmamış column'ları ekle (eğer varsa)
             columns.forEach((column, index) => {
                 if (!this.excludeColumns.includes(index) && !groupedColumnIndexes.includes(column.idx)) {
                     const renderedData = this.renderColumnData(rowData[column.data], column.idx, rowData, rowIndex);
-                    const simpleContent = (this.editableColumns.some(col => col.index === index)) ? this.generateEditableContent(renderedData, column.sTitle, index) : this.generateSimpleContent(renderedData, column.sTitle, index);
+                    const simpleContent = (this.editableColumns.some(col => col.index === index)) ?
+                        this.generateEditableContent(renderedData, column.sTitle, index) :
+                        this.generateSimpleContent(renderedData, column.sTitle, index);
                     modalContent.append(simpleContent);
                 }
             });
 
+            // Sonra columnGroups sırasına göre grupları ekle
             this.columnGroups.forEach(group => {
-                const groupRowData = group.columns.map((colIdx) => {
+                // Tek column mu yoksa grup mu? (columns.length === 1 ise single)
+                const isSingle = group.columns.length === 1;
+
+                if (isSingle) {
+                    // Tekli column - normal row olarak göster
+                    const colIdx = group.columns[0];
                     const col = columns.find(column => column.idx === colIdx);
-                    const renderedData = this.renderColumnData(rowData[col.data], col.idx, rowData, rowIndex);
-                    return {
-                        idx: colIdx,
-                        data: renderedData,
-                        name: col.sTitle
-                    };
-                });
-                const groupContent = this.generateGroupedContent(groupRowData, group.columns, group.name);
-                modalContent.append(groupContent);
+
+                    if (col && !this.excludeColumns.includes(colIdx)) {
+                        const renderedData = this.renderColumnData(rowData[col.data], col.idx, rowData, rowIndex);
+                        const simpleContent = (this.editableColumns.some(c => c.index === colIdx)) ?
+                            this.generateEditableContent(renderedData, col.sTitle, colIdx) :
+                            this.generateSimpleContent(renderedData, col.sTitle, colIdx);
+                        modalContent.append(simpleContent);
+                    }
+                } else {
+                    // Grup - accordion olarak göster
+                    const groupRowData = group.columns.map((colIdx) => {
+                        const col = columns.find(column => column.idx === colIdx);
+                        if (!col) return null;
+
+                        const renderedData = this.renderColumnData(rowData[col.data], col.idx, rowData, rowIndex);
+                        return {
+                            idx: colIdx,
+                            data: renderedData,
+                            name: col.sTitle
+                        };
+                    }).filter(item => item !== null);
+
+                    const groupContent = this.generateGroupedContent(groupRowData, group.columns, group.name, group.isOpen || false);
+                    modalContent.append(groupContent);
+                }
             });
 
-            // Grouped content acordion functionality
+            // Accordion functionality
             $('.dtMobileModalGroupTitle').off('click').on('click', function () {
                 $(this).next('.dtMobileModalGroupContent').slideToggle();
+                $(this).toggleClass('active');
             });
         }
         else {
+            // columnGroups yoksa, eski mantık - tüm column'ları sırayla göster
             columns.forEach((column, index) => {
                 if (!this.excludeColumns.includes(index)) {
                     const renderedData = this.renderColumnData(rowData[column.data], column.idx, rowData, rowIndex);
-                    const simpleContent = (this.editableColumns.some(col => col.index === index)) ? this.generateEditableContent(renderedData, column.sTitle, index) : this.generateSimpleContent(renderedData, column.sTitle, index);
+                    const simpleContent = (this.editableColumns.some(col => col.index === index)) ?
+                        this.generateEditableContent(renderedData, column.sTitle, index) :
+                        this.generateSimpleContent(renderedData, column.sTitle, index);
                     modalContent.append(simpleContent);
                 }
             });
         }
 
         setTimeout(() => {
-            $('.dtMobileModalContent .dtEditableValue').each(function() {
+            $('.dtMobileModalContent .dtEditableValue').each(function () {
                 $(this).data('previous-value', $(this).val());
             });
         }, 0);
@@ -365,52 +411,53 @@ class DataTableMobileHelper {
     generateEditableContent(data, title, index) {
         let editableColumn = this.editableColumns.find(col => col.index === index);
         return `<div class="dtMobileModalRow">
-            <div class="dtMobileModalRowTitle">${title}</div>
+            <div class="dtMobileModalRowTitle" data-index="${index}">${title}</div>
             <div class="dtMobileModalRowValue">
-                ${editableColumn.type === 'select' 
-                    ?
-                    `<select data-index="${index}" class="dtEditableValue">
+                ${editableColumn.type === 'select'
+                ?
+                `<select data-index="${index}" class="dtEditableValue">
                         ${editableColumn.options.map(option => `<option value="${option.value}" ${option.value == data ? 'selected' : ''}>${option.text}</option>`).join('')}
                     </select>`
-                    :
-                    `<input data-index="${index}" type="${editableColumn.type}" value="${data}" class="dtEditableValue" />`
-                }
+                :
+                `<input data-index="${index}" type="${editableColumn.type}" value="${data}" class="dtEditableValue" />`
+            }
             </div>
         </div>`;
     }
 
-    generateGroupedContent(datas, columns, title) {
+    generateGroupedContent(datas, columns, title, isOpen) {
         const that = this;
+
         return `<div class="dtMobileModalGroup">
-            <div class="dtMobileModalGroupTitle">
+            <div class="dtMobileModalGroupTitle ${isOpen ? 'active' : ''}">
                 <h3>${title}</h3>
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M300.3 440.8C312.9 451 331.4 450.3 343.1 438.6L471.1 310.6C480.3 301.4 483 287.7 478 275.7C473 263.7 461.4 256 448.5 256L192.5 256C179.6 256 167.9 263.8 162.9 275.8C157.9 287.8 160.7 301.5 169.9 310.6L297.9 438.6L300.3 440.8z"/></svg>
             </div>
-            <div class="dtMobileModalGroupContent" style="display: none;">
+            <div class="dtMobileModalGroupContent" ${!isOpen ? `style="display: none;"` : ""}>
                 ${datas.map(dataObj => {
-                    if (that.editableColumns.some(col => col.index === dataObj.idx)) {
-                        let editableColumn = that.editableColumns.find(col => col.index === dataObj.idx);
-                        return `<div class="dtGroupContentRow">
+            if (that.editableColumns.some(col => col.index === dataObj.idx)) {
+                let editableColumn = that.editableColumns.find(col => col.index === dataObj.idx);
+                return `<div class="dtGroupContentRow">
                                     <div>${dataObj.name}</div>
                                     <div>
-                                        ${editableColumn.type === 'select' 
-                                            ?
-                                            `<select data-index="${dataObj.idx}" class="dtEditableValue">
-                                                ${editableColumn.options.map(option => `<option value="${option.value}" ${option.value == dataObj.data ? 'selected' : ''}>${option.text}</option>`).join('')}
-                                            </select>`
-                                            :
-                                            `<input data-index="${dataObj.idx}" type="${editableColumn.type}" value="${dataObj.data}" class="dtEditableValue" />`
-                                        }
+                                        ${editableColumn.type === 'select'
+                        ?
+                        `<select data-index="${dataObj.idx}" class="dtEditableValue">
+                                                            ${editableColumn.options.map(option => `<option value="${option.value}" ${option.value == dataObj.data ? 'selected' : ''}>${option.text}</option>`).join('')}
+                                                        </select>`
+                        :
+                        `<input data-index="${dataObj.idx}" type="${editableColumn.type}" value="${dataObj.data}" class="dtEditableValue" />`
+                    }
                                     </div>
                                 </div>`;
-                    }
-                    else {
-                        return `<div class="dtGroupContentRow">
+            }
+            else {
+                return `<div class="dtGroupContentRow">
                                     <div>${dataObj.name}</div>
                                     <div>${dataObj.data}</div>
                                 </div>`;
-                    }
-                }).join('')}
+            }
+        }).join('')}
             </div>
         </div>`;
     }
@@ -460,10 +507,14 @@ class DataTableMobileHelper {
                 border: none;
                 cursor: pointer;
                 width: 2.25rem;
+                min-width: 2.25rem;
                 padding: 0.25rem;
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
+                fill: ${this.theme.detailButtonColor};
+            }
+            .dtMobileDetailBtn svg {
                 fill: ${this.theme.detailButtonColor};
             }
             #dtMobileModal {
@@ -480,7 +531,7 @@ class DataTableMobileHelper {
                 overflow-y: auto;
             }
             #dtMobileModal.show {
-                display: flex;
+                display: flex !important;
             }
             .dtMobileModalHeader {
                 display: flex;
@@ -510,6 +561,9 @@ class DataTableMobileHelper {
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
+                fill: ${this.theme.modalCloseButtonColor};
+            }
+            .dtMobileModalCloseBtn svg {
                 fill: ${this.theme.modalCloseButtonColor};
             }
             .dtMobileModalContent {
@@ -549,6 +603,7 @@ class DataTableMobileHelper {
                 border: 2px solid ${this.theme.rowBorderColor};
             }
             .dtMobileModalRow .dtMobileModalRowTitle {
+                font-size: 14px;
                 padding: 0.5rem;
                 background-color: ${this.theme.rowTitleBackgroundColor};
                 font-weight: 600;
@@ -558,8 +613,7 @@ class DataTableMobileHelper {
                 padding: 0.5rem;
                 font-size: 0.875rem;
             }
-            .dtMobileModalRow .dtMobileModalRowValue .dtEditableValue {
-                min-width: 200px;
+            .dtMobileModalRow .dtMobileModalRowValue .dtEditableValue  {
                 padding: 0.5rem;
                 margin: 0.25rem;
                 font-size: 0.875rem;
@@ -590,6 +644,7 @@ class DataTableMobileHelper {
             .dtMobileModalGroupTitle svg {
                 width: 1.5rem;
                 transition: transform 0.3s ease;
+                fill: ${this.theme.modalHeaderTitleColor};
             }
             .dtMobileModalGroupTitle.active svg {
                 transform: rotate(180deg);
@@ -615,7 +670,6 @@ class DataTableMobileHelper {
                 margin-bottom: 0.25rem;
             }
             .dtMobileModalGroupContent .dtGroupContentRow div .dtEditableValue {
-                min-width: 200px;
                 padding: 0.5rem;
                 margin: 0.25rem;
                 font-size: 0.875rem;
