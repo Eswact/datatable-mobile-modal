@@ -41,6 +41,7 @@ class DataTableMobileHelper {
             actionButtonBorderColor: '#2727a7',
             actionButtonBackgroundColor: '#e0e0ff'
         }, options.theme || {});
+        this.zindex = options.zindex || 102;
 
         this.isTransformed = false;
 
@@ -273,7 +274,7 @@ class DataTableMobileHelper {
                     } else {
                         // Grup içinde veya normal row içinde arama yap
                         let $targetDisplay = $(`.dtMobileModalContent .dtMobileModalRowValue`).filter(function () {
-                            return $(this).prev('.dtMobileModalRowTitle').attr('data-index') == reactive.targetIndex;
+                            return $(this).closest('.dtMobileModalRow').attr('data-index') == reactive.targetIndex;
                         });
 
                         // Eğer normal row'da bulunamadıysa grup içinde ara
@@ -333,7 +334,7 @@ class DataTableMobileHelper {
                 if (!this.excludeColumns.includes(index) && !groupedColumnIndexes.includes(column.idx)) {
                     const renderedData = this.renderColumnData(rowData[column.data], column.idx, rowData, rowIndex);
                     const simpleContent = (this.editableColumns.some(col => col.index === index)) ?
-                        this.generateEditableContent(renderedData, column.sTitle, index) :
+                        this.generateEditableContent(renderedData, column.sTitle, index, rowData) :
                         this.generateSimpleContent(renderedData, column.sTitle, index);
                     modalContent.append(simpleContent);
                 }
@@ -352,7 +353,7 @@ class DataTableMobileHelper {
                     if (col && !this.excludeColumns.includes(colIdx)) {
                         const renderedData = this.renderColumnData(rowData[col.data], col.idx, rowData, rowIndex);
                         const simpleContent = (this.editableColumns.some(c => c.index === colIdx)) ?
-                            this.generateEditableContent(renderedData, col.sTitle, colIdx) :
+                            this.generateEditableContent(renderedData, col.sTitle, colIdx, rowData) :
                             this.generateSimpleContent(renderedData, col.sTitle, colIdx);
                         modalContent.append(simpleContent);
                     }
@@ -370,7 +371,7 @@ class DataTableMobileHelper {
                         };
                     }).filter(item => item !== null);
 
-                    const groupContent = this.generateGroupedContent(groupRowData, group.columns, group.name, group.isOpen || false);
+                    const groupContent = this.generateGroupedContent(groupRowData, group.columns, group.name, group.isOpen || false, rowData);
                     modalContent.append(groupContent);
                 }
             });
@@ -387,7 +388,7 @@ class DataTableMobileHelper {
                 if (!this.excludeColumns.includes(index)) {
                     const renderedData = this.renderColumnData(rowData[column.data], column.idx, rowData, rowIndex);
                     const simpleContent = (this.editableColumns.some(col => col.index === index)) ?
-                        this.generateEditableContent(renderedData, column.sTitle, index) :
+                        this.generateEditableContent(renderedData, column.sTitle, index, rowData) :
                         this.generateSimpleContent(renderedData, column.sTitle, index);
                     modalContent.append(simpleContent);
                 }
@@ -402,30 +403,44 @@ class DataTableMobileHelper {
     }
 
     generateSimpleContent(data, title, index) {
-        return `<div class="dtMobileModalRow">
-            <div class="dtMobileModalRowTitle" data-index="${index}">${title}</div>
-            <div class="dtMobileModalRowValue">${data}</div>
+        let returnedData = data;
+        if (data == null || data == '' || data == undefined) {
+            returnedData = '-';
+        }
+        return `<div class="dtMobileModalRow" data-index="${index}">
+            <div class="dtMobileModalRowTitle">${title}</div>
+            <div class="dtMobileModalRowValue">${returnedData}</div>
         </div>`;
     }
 
-    generateEditableContent(data, title, index) {
+    generateEditableContent(data, title, index, rowData) {
         let editableColumn = this.editableColumns.find(col => col.index === index);
-        return `<div class="dtMobileModalRow">
-            <div class="dtMobileModalRowTitle" data-index="${index}">${title}</div>
+
+        let resolvedValue = data;
+        if (editableColumn.displayResolver && typeof editableColumn.displayResolver === 'function') {
+            resolvedValue = editableColumn.displayResolver(data, rowData);
+        }
+
+        return `<div class="dtMobileModalRow" data-index="${index}">
+            <div class="dtMobileModalRowTitle">${title}</div>
             <div class="dtMobileModalRowValue">
                 ${editableColumn.type === 'select'
-                ?
-                `<select data-index="${index}" class="dtEditableValue">
-                        ${editableColumn.options.map(option => `<option value="${option.value}" ${option.value == data ? 'selected' : ''}>${option.text}</option>`).join('')}
-                    </select>`
-                :
-                `<input data-index="${index}" type="${editableColumn.type}" value="${data}" class="dtEditableValue" />`
-            }
+                    ? `<select data-index="${index}" class="dtEditableValue">
+                    ${editableColumn.options.map(option =>
+                        `<option value="${option.value}" 
+                         ${option.value == resolvedValue ? 'selected' : ''}>
+                         ${option.text}
+                        </option>`
+                    ).join('')}
+                   </select>`
+                    : `<input data-index="${index}" type="${editableColumn.type}" 
+                          value="${resolvedValue}" class="dtEditableValue" />`
+                }
             </div>
         </div>`;
     }
 
-    generateGroupedContent(datas, columns, title, isOpen) {
+    generateGroupedContent(datas, columns, title, isOpen, rowData) {  // rowData eklendi
         const that = this;
 
         return `<div class="dtMobileModalGroup">
@@ -435,44 +450,55 @@ class DataTableMobileHelper {
             </div>
             <div class="dtMobileModalGroupContent" ${!isOpen ? `style="display: none;"` : ""}>
                 ${datas.map(dataObj => {
-            if (that.editableColumns.some(col => col.index === dataObj.idx)) {
-                let editableColumn = that.editableColumns.find(col => col.index === dataObj.idx);
-                return `<div class="dtGroupContentRow">
-                                    <div>${dataObj.name}</div>
-                                    <div>
-                                        ${editableColumn.type === 'select'
-                        ?
-                        `<select data-index="${dataObj.idx}" class="dtEditableValue">
-                                                            ${editableColumn.options.map(option => `<option value="${option.value}" ${option.value == dataObj.data ? 'selected' : ''}>${option.text}</option>`).join('')}
-                                                        </select>`
-                        :
-                        `<input data-index="${dataObj.idx}" type="${editableColumn.type}" value="${dataObj.data}" class="dtEditableValue" />`
+                if (that.editableColumns.some(col => col.index === dataObj.idx)) {
+                    let editableColumn = that.editableColumns.find(col => col.index === dataObj.idx);
+
+                    // displayResolver desteği
+                    let resolvedValue = dataObj.data;
+                    if (editableColumn.displayResolver && typeof editableColumn.displayResolver === 'function') {
+                        resolvedValue = editableColumn.displayResolver(dataObj.data, rowData);
                     }
-                                    </div>
-                                </div>`;
-            }
-            else {
-                return `<div class="dtGroupContentRow">
-                                    <div>${dataObj.name}</div>
-                                    <div>${dataObj.data}</div>
-                                </div>`;
-            }
-        }).join('')}
+
+                    return `<div class="dtGroupContentRow">
+                            <div>${dataObj.name}</div>
+                            <div>
+                                ${editableColumn.type === 'select'
+                            ? `<select data-index="${dataObj.idx}" class="dtEditableValue">
+                                        ${editableColumn.options.map(option =>
+                                `<option value="${option.value}" ${option.value == resolvedValue ? 'selected' : ''}>${option.text}</option>`
+                            ).join('')}
+                                       </select>`
+                            : `<input data-index="${dataObj.idx}" type="${editableColumn.type}" value="${resolvedValue}" class="dtEditableValue" />`
+                        }
+                            </div>
+                        </div>`;
+                }
+                else {
+                    let returnedData = dataObj.data;
+                    if (dataObj.data == null || dataObj.data == '' || dataObj.data == undefined) {
+                        returnedData = '-';
+                    }
+                    return `<div class="dtGroupContentRow">
+                            <div>${dataObj.name}</div>
+                            <div>${returnedData}</div>
+                        </div>`;
+                }
+            }).join('')}
             </div>
         </div>`;
     }
 
     // Create modal HTML
     createModal() {
-        if ($('#dtMobileModal').length > 0) return;
+        if ($('#dtMobileModal').length > 0) {
+            $('#dtMobileModal').remove();
+        }
 
         const modalHtml = `<div id="dtMobileModal">
             <div class="dtMobileModalHeader">
                 <h2 class="dtMobileModalTitle">${this.modalTitle}</h2>
                 <button class="dtMobileModalCloseBtn">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
-                        <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM231 231C240.4 221.6 255.6 221.6 264.9 231L319.9 286L374.9 231C384.3 221.6 399.5 221.6 408.8 231C418.1 240.4 418.2 255.6 408.8 264.9L353.8 319.9L408.8 374.9C418.2 384.3 418.2 399.5 408.8 408.8C399.4 418.1 384.2 418.2 374.9 408.8L319.9 353.8L264.9 408.8C255.5 418.2 240.3 418.2 231 408.8C221.7 399.4 221.6 384.2 231 374.9L286 319.9L231 264.9C221.6 255.5 221.6 240.3 231 231z"/>
-                    </svg>
+                    <i class="fa fa-times-circle" aria-hidden="true"></i>
                 </button>
             </div>
             <div class="dtMobileModalContent">
@@ -517,8 +543,8 @@ class DataTableMobileHelper {
             .dtMobileDetailBtn svg {
                 fill: ${this.theme.detailButtonColor};
             }
-            #dtMobileModal {
-                z-index: 100;
+           #dtMobileModal {
+                z-index: ${this.zindex};
                 position: fixed;
                 top: 0;
                 left: 0;
@@ -561,10 +587,12 @@ class DataTableMobileHelper {
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
-                fill: ${this.theme.modalCloseButtonColor};
+                fill: ${this.theme.modalCloseButtonColor};color: #df3f3f;
+                font-size: 1.875rem;
             }
-            .dtMobileModalCloseBtn svg {
-                fill: ${this.theme.modalCloseButtonColor};
+            #dtMobileModal .dtMobileModalCloseBtn svg {
+                color: ${this.theme.modalCloseButtonColor} !important;
+                fill: ${this.theme.modalCloseButtonColor} !important;
             }
             .dtMobileModalContent {
                 margin-top: 2.5rem;
