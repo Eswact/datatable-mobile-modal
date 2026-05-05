@@ -243,7 +243,6 @@ class DataTableMobileHelper {
         const that = this;
 
         this.reactiveFields.forEach(reactive => {
-            // sourceIndex array veya tek değer olabilir
             const sourceIndexes = Array.isArray(reactive.sourceIndex) ? reactive.sourceIndex : [reactive.sourceIndex];
 
             sourceIndexes.forEach(sourceIdx => {
@@ -272,12 +271,10 @@ class DataTableMobileHelper {
                         $target.val(calculatedValue);
                         $target.data('previous-value', calculatedValue);
                     } else {
-                        // Grup içinde veya normal row içinde arama yap
                         let $targetDisplay = $(`.dtMobileModalContent .dtMobileModalRowValue`).filter(function () {
                             return $(this).closest('.dtMobileModalRow').attr('data-index') == reactive.targetIndex;
                         });
 
-                        // Eğer normal row'da bulunamadıysa grup içinde ara
                         if ($targetDisplay.length === 0) {
                             $targetDisplay = $(`.dtMobileModalContent .dtGroupContentRow`).filter(function () {
                                 return $(this).find('.dtEditableValue[data-index="' + reactive.targetIndex + '"]').length > 0 ||
@@ -300,9 +297,7 @@ class DataTableMobileHelper {
         });
     }
 
-    // Render column data with custom render function
     renderColumnData(data, columnIndex, rowData, rowIndex) {
-        // Check if there's a custom render function for this column
         if (this.columnRenders[columnIndex] && typeof this.columnRenders[columnIndex] === 'function') {
             return this.columnRenders[columnIndex](data, 'display', rowData, {
                 row: rowIndex,
@@ -310,7 +305,6 @@ class DataTableMobileHelper {
             });
         }
 
-        // Return raw data if no render function
         return data;
     }
 
@@ -321,15 +315,12 @@ class DataTableMobileHelper {
         const modalContent = $('#dtMobileModal .dtMobileModalContent');
         modalContent.empty();
 
-        // columnGroups varsa
         if (this.columnGroups && this.columnGroups.length > 0) {
-            // Tüm gruplandırılmış column index'lerini topla
             let groupedColumnIndexes = [];
             this.columnGroups.forEach(group => {
                 groupedColumnIndexes = groupedColumnIndexes.concat(group.columns);
             });
 
-            // Önce gruplandırılmamış column'ları ekle (eğer varsa)
             columns.forEach((column, index) => {
                 if (!this.excludeColumns.includes(index) && !groupedColumnIndexes.includes(column.idx)) {
                     const renderedData = this.renderColumnData(rowData[column.data], column.idx, rowData, rowIndex);
@@ -340,13 +331,10 @@ class DataTableMobileHelper {
                 }
             });
 
-            // Sonra columnGroups sırasına göre grupları ekle
             this.columnGroups.forEach(group => {
-                // Tek column mu yoksa grup mu? (columns.length === 1 ise single)
                 const isSingle = group.columns.length === 1;
 
                 if (isSingle) {
-                    // Tekli column - normal row olarak göster
                     const colIdx = group.columns[0];
                     const col = columns.find(column => column.idx === colIdx);
 
@@ -358,7 +346,6 @@ class DataTableMobileHelper {
                         modalContent.append(simpleContent);
                     }
                 } else {
-                    // Grup - accordion olarak göster
                     const groupRowData = group.columns.map((colIdx) => {
                         const col = columns.find(column => column.idx === colIdx);
                         if (!col) return null;
@@ -376,14 +363,12 @@ class DataTableMobileHelper {
                 }
             });
 
-            // Accordion functionality
             $('.dtMobileModalGroupTitle').off('click').on('click', function () {
                 $(this).next('.dtMobileModalGroupContent').slideToggle();
                 $(this).toggleClass('active');
             });
         }
         else {
-            // columnGroups yoksa, eski mantık - tüm column'ları sırayla göster
             columns.forEach((column, index) => {
                 if (!this.excludeColumns.includes(index)) {
                     const renderedData = this.renderColumnData(rowData[column.data], column.idx, rowData, rowIndex);
