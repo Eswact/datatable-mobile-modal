@@ -733,4 +733,10 @@ class DataTableMobileHelper {
 }
 
 // Global usage
-window.DataTableMobileHelper = DataTableMobileHelper;
+if (typeof window !== 'undefined') {
+    window.DataTableMobileHelper = DataTableMobileHelper;
+}
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = DataTableMobileHelper;
+    module.exports.DataTableMobileHelper = DataTableMobileHelper;
+}

@@ -1,0 +1,47 @@
+{
+  "name": "@eswact/datatable-mobile-modal",
+  "version": "1.0.0",
+  "description": "Mobile detail modal helper for jQuery DataTables.",
+  "main": "src/scripts/datatable-mobile.js",
+  "types": "src/scripts/datatable-mobile.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/scripts/datatable-mobile.d.ts",
+      "default": "./src/scripts/datatable-mobile.js"
+    }
+  },
+  "files": [
+    "src/scripts/datatable-mobile.js",
+    "src/scripts/datatable-mobile.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "datatable",
+    "datatables",
+    "jquery",
+    "mobile",
+    "modal",
+    "plugin"
+  ],
+  "author": "Eswact",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Eswact/datatable-mobile-modal.git"
+  },
+  "homepage": "https://github.com/Eswact/datatable-mobile-modal#readme",
+  "bugs": {
+    "url": "https://github.com/Eswact/datatable-mobile-modal/issues"
+  },
+  "scripts": {
+    "pack:check": "npm pack --dry-run"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "peerDependencies": {
+    "jquery": ">=3.6.0",
+    "datatables.net": ">=1.13.7"
+  }
+}
