@@ -1,6 +1,6 @@
 {
-  "name": "@eswact/datatable-mobile-modal",
-  "version": "1.0.5",
+  "name": "@eswact/datatable-responsive-modal",
+  "version": "1.0.0",
   "description": "Mobile detail modal helper for jQuery DataTables.",
   "main": "src/scripts/datatable-mobile.js",
   "types": "src/scripts/datatable-mobile.d.ts",
@@ -28,11 +28,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Eswact/datatable-mobile-modal.git"
+    "url": "git+https://github.com/Eswact/datatable-responsive-modal.git"
   },
-  "homepage": "https://github.com/Eswact/datatable-mobile-modal#readme",
+  "homepage": "https://github.com/Eswact/datatable-responsive-modal#readme",
   "bugs": {
-    "url": "https://github.com/Eswact/datatable-mobile-modal/issues"
+    "url": "https://github.com/Eswact/datatable-responsive-modal/issues"
   },
   "scripts": {
     "pack:check": "npm pack --dry-run"

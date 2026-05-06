@@ -1,6 +1,6 @@
-# datatable-mobile-modal
+# datatable-responsive-modal
 
-`datatable-mobile-modal` is a reusable helper that adds a mobile-friendly detail modal on top of jQuery DataTables.
+`datatable-responsive-modal` is a reusable helper that adds a mobile-friendly detail modal on top of jQuery DataTables.
 
 It is compatible with DataTables `v1.13.x` and `v2.x` (jQuery integration) and supports:
 
@@ -14,7 +14,7 @@ It is compatible with DataTables `v1.13.x` and `v2.x` (jQuery integration) and s
 ## Installation
 
 ```bash
-npm install @eswact/datatable-mobile-modal
+npm install @eswact/datatable-responsive-modal
 ```
 
 ## Peer dependencies
@@ -25,7 +25,7 @@ npm install @eswact/datatable-mobile-modal
 ## Usage
 
 ```js
-const DataTableMobileHelper = require('@eswact/datatable-mobile-modal');
+const DataTableMobileHelper = require('@eswact/datatable-responsive-modal');
 
 const table = $('#customers').DataTable({
   data: mockData,
