@@ -92,16 +92,3 @@ Main options accepted by `new DataTableMobileHelper(options)`:
 
 - The helper injects its own modal styles dynamically.
 - jQuery (`$`) and DataTables must be loaded before creating the helper.
-
-## Release checklist
-
-1. Update `version` in `package.json`
-2. Run `npm run pack:check`
-3. Login once: `npm login`
-4. Publish: `npm publish`
-
-If you switch to a scoped package (example: `@eswact/datatable-mobile-modal`), publish with:
-
-```bash
-npm publish --access public
-```
