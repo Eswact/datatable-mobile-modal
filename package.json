@@ -1,6 +1,6 @@
 {
   "name": "@eswact/datatable-mobile-modal",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "Mobile detail modal helper for jQuery DataTables.",
   "main": "src/scripts/datatable-mobile.js",
   "types": "src/scripts/datatable-mobile.d.ts",
@@ -38,7 +38,7 @@
     "pack:check": "npm pack --dry-run"
   },
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "peerDependencies": {
     "jquery": ">=3.6.0",

@@ -483,7 +483,9 @@ class DataTableMobileHelper {
             <div class="dtMobileModalHeader">
                 <h2 class="dtMobileModalTitle">${this.modalTitle}</h2>
                 <button class="dtMobileModalCloseBtn">
-                    <i class="fa fa-times-circle" aria-hidden="true"></i>
+                    <svg viewBox="0 0 512 512" aria-hidden="true">
+                        <path d="M256 48C141.1 48 48 141.1 48 256s93.1 208 208 208 208-93.1 208-208S370.9 48 256 48zm91.3 270.6c6.2 6.2 6.2 16.4 0 22.6l-6.1 6.1c-6.2 6.2-16.4 6.2-22.6 0L256 284.7l-62.6 62.6c-6.2 6.2-16.4 6.2-22.6 0l-6.1-6.1c-6.2-6.2-6.2-16.4 0-22.6L227.3 256l-62.6-62.6c-6.2-6.2-6.2-16.4 0-22.6l6.1-6.1c6.2-6.2 16.4-6.2 22.6 0l62.6 62.6 62.6-62.6c6.2-6.2 16.4-6.2 22.6 0l6.1 6.1c6.2 6.2 6.2 16.4 0 22.6L284.7 256l62.6 62.6z"/>
+                    </svg>
                 </button>
             </div>
             <div class="dtMobileModalContent">
@@ -508,6 +510,14 @@ class DataTableMobileHelper {
         if ($('#dtMobileHelperStyles').length > 0) return;
 
         const styles = `<style id="dtMobileHelperStyles">
+            .dtMobileCellWrapper,
+            .dtMobileCellWrapper *,
+            .dtMobileDetailBtn,
+            .dtMobileDetailBtn *,
+            #dtMobileModal,
+            #dtMobileModal * {
+                box-sizing: border-box;
+            }
             .dtMobileCellWrapper {
                 display: flex;
                 align-items: center;
@@ -580,7 +590,7 @@ class DataTableMobileHelper {
                 fill: ${this.theme.modalCloseButtonColor} !important;
             }
             .dtMobileModalContent {
-                margin-top: 2.5rem;
+                margin-top: 3.5rem;
                 padding: 1rem 0.25rem;
                 display: flex;
                 flex-direction: column;
