@@ -10,6 +10,7 @@ It is compatible with DataTables `v1.13.x` and `v2.x` (jQuery integration) and s
 - Editable modal mode (text, number, email, select)
 - Reactive fields and action callbacks
 - Theme and z-index customization
+- TypeScript definitions included
 
 ## Installation
 
@@ -52,11 +53,10 @@ const mobileHelper = new DataTableMobileHelper({
   ],
   onActionButtonClick: async (editedColumns) => {
     console.log(editedColumns);
-    return true;
+    return true; // return true to close the modal
   }
 });
 
-// if needed:
 // mobileHelper.destroy();
 ```
 
@@ -73,22 +73,30 @@ const helper = new window.DataTableMobileHelper({
 
 ## Options
 
-Main options accepted by `new DataTableMobileHelper(options)`:
+| Option | Default | Description |
+|---|---|---|
+| `table` | **required** | DataTables instance |
+| `primaryColumns` | `[0]` | Column indexes visible on mobile |
+| `modalTitle` | `'Details'` | Modal header title |
+| `excludeColumns` | `[]` | Columns excluded from the modal |
+| `columnGroups` | `null` | Group columns into collapsible sections — `{ name, columns, isOpen? }` |
+| `columnRenders` | `{}` | Custom render functions per column index |
+| `mobileOnlyColumns` | `[]` | Columns visible only on mobile, hidden on desktop |
+| `editableMode` | `false` | Enable editable fields (auto-enabled when `editableColumns` is set) |
+| `editableColumns` | `[]` | Editable column config — `{ index, type, options?, displayResolver?, onKeydown?, onBlur?, onChange? }` |
+| `reactiveFields` | `[]` | Computed fields that update when a source field changes — `{ sourceIndex, targetIndex, calculate, onUpdate? }` |
+| `onModalOpen` | `null` | `(rowData, rowIndex) => void` — fired when the modal opens |
+| `onActionButtonClick` | `null` | `async (editedColumns) => boolean` — return `true` to close the modal |
+| `actionButtonHtml` | `'Save'` | HTML content for the action button |
+| `detailButtonHtml` | SVG icon | HTML content for the per-row detail button |
+| `breakpoint` | `768` | Viewport width (px) below which mobile mode activates |
+| `zindex` | `102` | CSS `z-index` of the modal |
+| `theme` | Color overrides |
 
-- `table` (required): DataTables instance (`$('#table').DataTable()`)
-- `primaryColumns`: columns visible on mobile
-- `modalTitle`: modal header title
-- `columnGroups`: grouped display in modal
-- `excludeColumns`: columns excluded from modal
-- `columnRenders`: custom render map by column index
-- `mobileOnlyColumns`: columns visible only on mobile
-- `editableMode`, `editableColumns`
-- `reactiveFields`
-- `onModalOpen`, `onActionButtonClick`
-- `actionButtonHtml`, `detailButtonHtml`
-- `theme`, `zindex`, `breakpoint`
 
 ## Notes
 
 - The helper injects its own modal styles dynamically.
 - jQuery (`$`) and DataTables must be loaded before creating the helper.
+- If `editableMode` is `true` but `editableColumns` is empty, all non-excluded columns become text inputs.
+- The table transforms and restores automatically on window resize.
